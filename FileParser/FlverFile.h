@@ -19,7 +19,7 @@
 //TODO problem with value and unknown_id value
 struct HitBox {
 	Vec3 row1;
-	ushort unknown_id1; //Most of it is 0. 33023(80FF), 51300(C864), 25700(6464), 255(00FF)
+	ushort unknown_id1; //Most of it is 0, 33023(80FF), 51300(C864), 25700(6464), 255(00FF)
 	ushort unknown_id2; //Most of it is 0XFF00 65280
 	Vec3 row2;
 	ushort unknown_id3;
@@ -34,7 +34,7 @@ struct HitBox {
 		//if (unknown_id2 != 0XFF00) Log::info("hit_box.unknown_id2 is ", unknown_id2);
 		return unknown1 == 0XFFFF
 			&& unknown2 == 0X0100
-			&& std::all_of(skip, skip + 16, [](const byte& a) {return a == 0; });
+			&& std::all_of(skip, skip + 16, [](const byte& a) { return a == 0; });
 	}
 };
 
@@ -94,7 +94,7 @@ struct FaceSetHeader {
 
 	bool operator()() {
 		//Log::info("unknown1: ", (uint)unknown1);
-		return index_buffer_size == index_count * 2
+		return index_buffer_size == index_count * sizeof(ushort)
 			&& topology == 0
 			&& (cull_backface == 0 || cull_backface == 1)
 			&& unknown2 == 0
@@ -108,30 +108,22 @@ struct MeshHeader {
 	int is_dynamic;
 
 	uint material_index;
-	byte unknown1[8]; //Always 0
+	byte unknown1[8]; // Always 0
 
-	uint default_bone_index;
-	uint bone_index_count;
-	uint unknown2; //Always 0;
-	uint bone_indices_offset;
-	//int old_pos = file.tell();
-	//file.seek(bone_indices_offset);
-	//uint bone_indices[bone_index_count];
-	//file.seek(old_pos);
+	uint default_bone_header_index;
+	uint bone_header_indices_count;
+	uint unknown2; // Always 0;
+	uint bone_header_indices_offset;
 
-	uint faceset_count;
-	uint faceset_offset;
-	//int old_pos = file.tell();
-	//file.seek(faceset_count);
-	//uint faceset_indices[faceset_indices_offset];
-	//file.seek(old_pos);
+	// Most of it is 3.
+	// We will not use it. In ordered.
+	uint faceset_header_indices_count;
+	uint faceset_header_indices_offset;
 
-	uint vertex_header_count;
-	uint vertex_header_offset;
-	//int old_pos = file.tell();
-	//file.seek(vertex_header_count);
-	//uint vertex_header_indices[vertex_header_offset];
-	//file.seek(old_pos);
+	// Most of it is 1.
+	// We will not use it. In ordered.
+	uint vertex_header_indices_count;
+	uint vertex_header_indices_offset;
 
 	bool operator()() {
 		return std::all_of(unknown1, unknown1 + 8, [](const byte& a) {return a == 0; })
@@ -144,7 +136,7 @@ struct VertexHeader {
 	//The vertex header index in mesh.
 	//Most of it is 0 for most meshes just have one vertex header. 
 	uint index;
-	uint vertex_info_index;
+	uint vertex_descriptor_index; // vertex_info_index
 	uint vertex_size;
 	uint vertex_count;
 	uint unknown2; //Always 0
@@ -153,7 +145,8 @@ struct VertexHeader {
 	uint vertex_buffer_offset;
 
 	bool operator()() {
-		return unknown2 == 0 && unknown3 == 0;
+		return unknown2 == 0 && unknown3 == 0
+			&& vertex_size * vertex_count == vertex_buffer_size;
 	}
 };
 
@@ -190,8 +183,8 @@ struct VertexDescriptor {
 	}
 };
 
-struct BoneIndices { byte bone_indices[4]; };
-struct BoneWeights { ushort bone_weight[4]; };
+//struct BoneIndices { byte bone_indices[4]; };
+//struct BoneWeights { ushort bone_weight[4]; };
 
 struct MaterialParameter {
 	uint filename_offset;
@@ -221,10 +214,10 @@ struct FlverHeader {
 	uint data_offset;
 	uint data_size;
 
-	uint hit_box_count;
-	uint material_count;
-	uint bone_count;
-	uint mesh_count;
+	uint hitbox_header_count;
+	uint material_header_count;
+	uint bone_header_count;
+	uint mesh_header_count;
 	uint vertex_header_count;
 
 	Vec3 bounder_lower; //Maybe
@@ -235,7 +228,7 @@ struct FlverHeader {
 	uint unknown3;  //Setting to 0 makes weapon invisible
 	uint unknown4;
 
-	uint faceset_count;
+	uint faceset_header_count;
 	uint vertex_descriptor_count;
 	uint material_param_count;
 
@@ -251,7 +244,7 @@ struct FlverHeader {
 #pragma pack()
 
 struct MeshInfo {
-	MeshHeader mesh_headers;
+	MeshHeader mesh_header;
 	std::vector<FaceSetHeader> face_set_headers;
 	std::vector<VertexHeader> vertex_headers;
 };
@@ -261,7 +254,7 @@ struct VertexInfo {
 	std::vector<StreamDescriptor> stream_descriptors;
 };
 
-//Based on material header
+// Based on material header
 struct MaterialInfo {
 	std::string mtl_name;
 	std::string mtd_name;
@@ -276,7 +269,7 @@ struct MaterialInfo {
 //	FaceData(ubyte draw_type, std::vector<ushort>&& face) : draw_type(draw_type), face(face) {}
 //};
 
-//Based on material parameter
+// Based on material parameter
 struct MaterialData {
 	std::string filename;
 
@@ -341,7 +334,8 @@ struct MeshData {
 	std::vector<VertexData> vertices;
 };
 
-//get the data type and data count information in stream descriptor
+// Get the data type and data count information in stream descriptor
+// For test
 struct Pair {
 	uint unknown2;
 	uint data_type;
@@ -358,7 +352,7 @@ bool operator<(const Pair& p1, const Pair& p2) {
 }
 std::set<Pair> p_data;
 std::set<std::string> types;
-ubyte all_data_count[12]{ 0XFF,0XFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF };
+ubyte all_data_count[12]{ 0XFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF };
 
 class FlverFile {
 	FlverHeader flver_header;
@@ -369,17 +363,77 @@ class FlverFile {
 	std::vector<MeshInfo> mesh_infos;
 	std::vector<VertexInfo> vertex_infos;
 	std::vector<MaterialInfo> mat_infos;
-	std::vector<MaterialData> mat_data;
 
+	std::vector<MaterialData> mat_data;
 	std::vector<MeshData> meshes;
 
+	void readMeshInfo(BinaryFileReader& reader) {
+
+		// Read MeshHeader
+		mesh_infos.resize(flver_header.mesh_header_count);
+		for (auto& mesh_info : mesh_infos) {
+			mesh_info.mesh_header = reader.readType<MeshHeader>();
+			assert(mesh_info.mesh_header());
+		}
+
+		// Read all FaceSetHeader
+		// Note: all the faceset_header_indices in meshes_headers are in ordered(not just for one mesh_header),
+		// so we don't use the index to get faceset_header. We just save it in our mesh_info data.
+		uint faceset_header_count = 0;
+		for (auto& mesh_info : mesh_infos) {
+			mesh_info.face_set_headers.reserve(mesh_info.mesh_header.faceset_header_indices_count);
+			faceset_header_count += mesh_info.mesh_header.faceset_header_indices_count;
+			for (uint i = 0; i < mesh_info.mesh_header.faceset_header_indices_count; ++i) {
+				mesh_info.face_set_headers.emplace_back(reader.readType<FaceSetHeader>());
+				assert(mesh_info.face_set_headers.back()());
+			}
+		}
+		assert(faceset_header_count == flver_header.faceset_header_count);
+
+		// Read all FaceSetHeader
+		uint vertex_header_count = 0;
+		for (auto& mesh_info : mesh_infos) {
+			mesh_info.vertex_headers.reserve(mesh_info.mesh_header.vertex_header_indices_count);
+			vertex_header_count += mesh_info.mesh_header.vertex_header_indices_count;
+			for (uint i = 0; i < mesh_info.mesh_header.vertex_header_indices_count; ++i) {
+				mesh_info.vertex_headers.emplace_back(reader.readType<VertexHeader>());
+				assert(mesh_info.vertex_headers.back()());
+			}
+		}
+		assert(vertex_header_count == flver_header.vertex_header_count);
+
+		//Just for test, maybe later will be used.
+		uint old_pos = reader.tell();
+		std::vector<uint> bone_header_indices;
+		std::vector<uint> faceset_header_indices;
+		std::vector<uint> vertex_header_indices;
+		for (const auto& mesh_info : mesh_infos) {
+			reader.seek(mesh_info.mesh_header.bone_header_indices_offset);
+			for (uint i = 0; i < mesh_info.mesh_header.bone_header_indices_count; ++i)
+				bone_header_indices.emplace_back(reader.readType<uint>());
+
+			reader.seek(mesh_info.mesh_header.faceset_header_indices_offset);
+			for (uint i = 0; i < mesh_info.mesh_header.faceset_header_indices_count; ++i)
+				faceset_header_indices.emplace_back(reader.readType<uint>());
+
+			reader.seek(mesh_info.mesh_header.vertex_header_indices_offset);
+			for (uint i = 0; i < mesh_info.mesh_header.vertex_header_indices_count; ++i)
+				vertex_header_indices.emplace_back(reader.readType<uint>());
+		}
+		// The data in faceset_header_indices and vertex_header_indices are in ordered, start form 0.
+		reader.seek(old_pos);
+	}
+
 	void readVertexInfo(BinaryFileReader& reader) {
+
+		// Read VertexDescriptor
 		vertex_infos.resize(flver_header.vertex_descriptor_count);
 		for (auto& vertex_info : vertex_infos) {
 			vertex_info.vertex_descriptor = reader.readType<VertexDescriptor>();
-			assert(vertex_info.vertex_descriptor());		
+			assert(vertex_info.vertex_descriptor());
 		}
 
+		// Read StreamDescriptor
 		uint old_pos = reader.tell();
 		for (auto& vertex_info : vertex_infos) {
 			vertex_info.stream_descriptors.reserve(vertex_info.vertex_descriptor.stream_descriptor_count);
@@ -389,9 +443,9 @@ class FlverFile {
 		}
 		reader.seek(old_pos);
 
+		//Just for test.
 		ubyte data_count[11];
 		for (const auto& vertex_info : vertex_infos) {
-			//vertex_info.vertex_descriptor.stream_descriptor_count > 7
 			//prove that the offset of the start stream descriptor is 0
 			assert(vertex_info.vertex_descriptor.stream_descriptor_count == 0
 				|| vertex_info.stream_descriptors[0].offset == 0);
@@ -403,7 +457,7 @@ class FlverFile {
 			}
 
 			uint i = 0;
-			//prove that the data count is in order.
+			//prove that the data index is in order.
 			//Also all the stream are continuous storage.
 			for (; i < vertex_info.vertex_descriptor.stream_descriptor_count - 1; ++i) {
 				assert(i == 0 || vertex_info.stream_descriptors[i].index == 0
@@ -426,56 +480,9 @@ class FlverFile {
 		}
 	}
 
-	void readMeshInfo(BinaryFileReader& reader) {
-		mesh_infos.resize(flver_header.mesh_count);
-		for (auto& mesh_info : mesh_infos) {
-			mesh_info.mesh_headers = reader.readType<MeshHeader>();
-			assert(mesh_info.mesh_headers());
-		}
-
-		uint faceset_count = 0;
-		for (auto& mesh_info : mesh_infos) {
-			mesh_info.face_set_headers.reserve(mesh_info.mesh_headers.faceset_count);
-			faceset_count += mesh_info.mesh_headers.faceset_count;
-			for (uint i = 0; i < mesh_info.mesh_headers.faceset_count; ++i) {
-				mesh_info.face_set_headers.emplace_back(reader.readType<FaceSetHeader>());
-				assert(mesh_info.face_set_headers.back()());
-			}
-		}
-		assert(faceset_count == flver_header.faceset_count);
-
-		uint vertex_header_count = 0;
-		for (auto& mesh_info : mesh_infos) {
-			mesh_info.vertex_headers.reserve(mesh_info.mesh_headers.vertex_header_count);
-			vertex_header_count += mesh_info.mesh_headers.vertex_header_count;
-			for (uint i = 0; i < mesh_info.mesh_headers.vertex_header_count; ++i) {
-				mesh_info.vertex_headers.emplace_back(reader.readType<VertexHeader>());
-				assert(mesh_info.vertex_headers.back()());
-			}
-		}
-		assert(vertex_header_count == flver_header.vertex_header_count);
-
-		uint old_pos = reader.tell();
-		std::vector<uint> bone_indices;
-		std::vector<uint> faceset_indices;
-		std::vector<uint> vertex_header_indices;
-		for (const auto& mesh_info : mesh_infos) {
-			reader.seek(mesh_info.mesh_headers.bone_indices_offset);
-			for (uint i = 0; i < mesh_info.mesh_headers.bone_index_count; ++i)
-				bone_indices.emplace_back(reader.readType<uint>());
-
-			reader.seek(mesh_info.mesh_headers.faceset_offset);
-			for (uint i = 0; i < mesh_info.mesh_headers.faceset_count; ++i)
-				faceset_indices.emplace_back(reader.readType<uint>());
-
-			reader.seek(mesh_info.mesh_headers.vertex_header_offset);
-			for (uint i = 0; i < mesh_info.mesh_headers.vertex_header_count; ++i)
-				vertex_header_indices.emplace_back(reader.readType<uint>());
-		}
-		reader.seek(old_pos);
-	}
-
 	void readMaterial(BinaryFileReader& reader) {
+
+		// Read MaterialParameter
 		std::vector<MaterialParameter> mat_params;
 		mat_params.reserve(flver_header.material_param_count);
 		for (uint i = 0; i < flver_header.material_param_count; ++i) {
@@ -512,20 +519,16 @@ class FlverFile {
 	}
 
 	void readMesh(BinaryFileReader& reader) {
-		meshes.reserve(flver_header.mesh_count);
+		meshes.reserve(flver_header.mesh_header_count);
 		for (auto& mesh_info : mesh_infos) {
 			MeshData mesh;
 			//prove that the mesh has data.
-			assert(mesh_info.mesh_headers.faceset_count != 0 && mesh_info.mesh_headers.vertex_header_count != 0);
+			assert(mesh_info.mesh_header.faceset_header_indices_count != 0 && mesh_info.mesh_header.vertex_header_indices_count != 0);
 
-			mesh.material_info_index = mesh_info.mesh_headers.material_index;
+			mesh.material_info_index = mesh_info.mesh_header.material_index;
 
-			//mesh.faces.reserve(mesh_info.mesh_headers.faceset_count);
-			//for (auto& face_set : mesh_info.face_set_headers) {
-			//	mesh.faces.emplace_back(face_set.topology, std::vector<ushort>(face_set.index_count));
-			//	reader.seek(flver_header.data_offset + face_set.index_buffer_offset);
-			//	for (auto& index : mesh.faces.back().face) index = reader.readType<ushort>();
-			//}
+			// Note: faceset_header.topology is always 0
+			// so we push all the face indices into one container.
 			uint face_indices_count = 0;
 			for (auto& face_set : mesh_info.face_set_headers) face_indices_count += face_set.index_count;
 			mesh.faces.reserve(face_indices_count);
@@ -542,7 +545,7 @@ class FlverFile {
 			for (const auto& vert_header : mesh_info.vertex_headers) {
 				assert(vert_header.vertex_count == vertex_count);
 				uint data_size = 0;
-				for (const auto& stream : vertex_infos[vert_header.vertex_info_index].stream_descriptors) {
+				for (const auto& stream : vertex_infos[vert_header.vertex_descriptor_index].stream_descriptors) {
 					assert(!(mesh.data_used[stream.data_type] & (1 << stream.index)));
 					mesh.data_used[stream.data_type] |= (1 << stream.index);
 					if (stream.data_type == 0X00) data_size += 12;
@@ -552,10 +555,14 @@ class FlverFile {
 			}
 			for (uint i = 0; i < 12; ++i) all_data_count[i] &= mesh.data_used[i];
 
+			// Note: most mesh_info just has one vertex_header.
+			// Sometimes you will get two vertex_header in one mesh_info,
+			// but you can merge it into one VertexData.
+			// Proof as above.
 			mesh.vertices.resize(mesh_info.vertex_headers[0].vertex_count);
 			for (const auto& vert_header : mesh_info.vertex_headers) {
 				reader.seek(flver_header.data_offset + vert_header.vertex_buffer_offset);
-				readVertex(reader, vertex_infos[vert_header.vertex_info_index], mesh.vertices);
+				readVertex(reader, vertex_infos[vert_header.vertex_descriptor_index], mesh.vertices);
 			}
 
 			meshes.emplace_back(std::move(mesh));
@@ -601,20 +608,20 @@ public:
 		flver_header = reader.readType<FlverHeader>();
 		assert(flver_header());
 
-		hit_boxes.reserve(flver_header.hit_box_count);
-		for (uint i = 0; i < flver_header.hit_box_count; ++i) {
+		hit_boxes.reserve(flver_header.hitbox_header_count);
+		for (uint i = 0; i < flver_header.hitbox_header_count; ++i) {
 			hit_boxes.emplace_back(reader.readType<HitBox>());
 			assert(hit_boxes.back()());
 		}
 
-		mat_headers.reserve(flver_header.material_count);
-		for (uint i = 0; i < flver_header.material_count; ++i) {
+		mat_headers.reserve(flver_header.material_header_count);
+		for (uint i = 0; i < flver_header.material_header_count; ++i) {
 			mat_headers.emplace_back(reader.readType<MaterialHeader>());
 			assert(mat_headers.back()());
 		}
 
-		bone_headers.reserve(flver_header.bone_count);
-		for (uint i = 0; i < flver_header.bone_count; ++i) {
+		bone_headers.reserve(flver_header.bone_header_count);
+		for (uint i = 0; i < flver_header.bone_header_count; ++i) {
 			bone_headers.emplace_back(reader.readType<BoneHeader>());
 			assert(bone_headers.back()());
 		}

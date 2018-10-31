@@ -36,7 +36,10 @@ struct Vec2 {
 	ushort y;
 
 	float getX()const { return (float)(x & 0X7FFF) / 2048.f; }
-	float getY()const { return (float)(y & 0X7FFF) / 2048.f; }
+	float getY(bool convert = true)const {
+		if(convert) return 1.f - (float)(y & 0X7FFF) / 2048.f;
+		else return (float)(y & 0X7FFF) / 2048.f;
+	}
 };
 
 struct Vec3 {
@@ -81,6 +84,13 @@ static std::string getFileName(const std::string& path) {
 	uint index = path.find_last_of('\\');
 	if (index == std::string::npos) index = path.find_last_of('/');
 	return path.substr(index + 1, path.find_last_of('.') - index - 1);
+}
+
+//note: cannot deal with no '/' or '\' and no '.' path
+static std::string getFileParent(const std::string& path) {
+	uint index = path.find_last_of('\\');
+	if (index == std::string::npos) index = path.find_last_of('/');
+	return path.substr(0, index + 1);
 }
 
 class BinaryFileReader {

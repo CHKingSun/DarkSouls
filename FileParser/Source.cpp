@@ -19,19 +19,19 @@ int main() {
 		flver.toObj(output_path, name);
 	}
 #else
-	std::string filename("F:/BinderTool/Game/GameDataEbl/model/chr/output/c6800/c6800.flver");
- 	std::string output_path = "F:/BinderTool/Game/GameDataEbl/model/chr/obj/";
- 	std::experimental::filesystem::create_directories(output_path);
- 	std::ifstream is("F:/BinderTool/Game/GameDataEbl/model/chr/output/flver_file.txt");
-	while (std::getline(is, filename)) {
+	std::string filename("F:/BinderTool/Game/GameDataEbl/model/chr/output/c6800/c6800_s.flver");
+ 	//std::string output_path = "F:/BinderTool/Game/GameDataEbl/model/chr/obj/";
+ 	//std::experimental::filesystem::create_directories(output_path);
+ 	//std::ifstream is("F:/BinderTool/Game/GameDataEbl/model/chr/output/flver_file.txt");
+	//while (std::getline(is, filename)) {
 		Log::info("filename: ", filename);
 		BinaryFileReader reader(filename);
 		if (reader.is_exist()) {
 			FlverFile flver(reader);
-			//flver.toObj("C:/Users/KingSun/Desktop/", getFileName(filename));
-			flver.toObj(output_path, getFileName(filename));
+			flver.toObj("C:/Users/KingSun/Desktop/", getFileName(filename));
+			//flver.toObj(getFileParent(filename), getFileName(filename));
 		}
-	}
+	//}
 
 	for (const auto& p : p_data) p();
 	for (const auto& name : types) Log::info(name);
