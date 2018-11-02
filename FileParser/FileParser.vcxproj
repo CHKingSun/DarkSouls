@@ -115,6 +115,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="BinaryFileReader.h" />
+    <ClInclude Include="Bnd4File.h" />
     <ClInclude Include="FlverFile.h" />
     <ClInclude Include="Log.h" />
     <ClInclude Include="TpfFile.h" />

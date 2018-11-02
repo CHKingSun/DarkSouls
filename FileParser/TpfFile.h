@@ -107,7 +107,7 @@ class TpfFile {
 		reader.read(dds.data.data(), dds.data.size());
 		reader.seek(now_pos);
 
-		dds_datas.emplace_back(dds);
+		dds_datas.emplace_back(std::move(dds));
 	}
 
 public:
@@ -125,9 +125,9 @@ public:
 		for (uint i = 0; i < header.texture_count; ++i) readDdsData(reader);
 	}
 
-	void toDdsFile(const std::string& output_path) {
+	void toDdsFile(const std::string& output_dir) {
 		for (const auto& dds : dds_datas) {
-			std::ofstream os(output_path + '/' + dds.filename, std::ios::binary);
+			std::ofstream os(output_dir + '/' + dds.filename, std::ios::binary);
 			os.write(dds.data.data(), dds.data.size());
 		}
 	}

@@ -27,6 +27,9 @@
     <ClInclude Include="TpfFile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Bnd4File.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp">

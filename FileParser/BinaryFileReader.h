@@ -79,6 +79,14 @@ static std::string wstrToStr(const std::wstring& wstr) {
 	return str;
 }
 
+static std::wstring strToWStr(const std::string& str) {
+	auto p_wstr = new wchar_t[str.size() + 1];
+	std::mbstowcs(p_wstr, str.data(), str.size() + 1);
+	std::wstring wstr(p_wstr);
+	delete[] p_wstr;
+	return wstr;
+}
+
 //note: cannot deal with no '/' or '\' and no '.' path
 static std::string getFileName(const std::string& path) {
 	uint index = path.find_last_of('\\');
