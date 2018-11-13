@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <filesystem>
 
 // #define assert(expression) ((void)0)
 
@@ -44,24 +45,38 @@ struct Bnd4Header {
 };
 
 struct OffsetInfo {
-	uint unknown1[2];
+	uint flag; // 0X0X00000040
+	uint unknown1;
 	uint file_size;
 	uint unknown2;
 
 	uint file_offset;
 	uint filename_offset;
+
+	bool operator()() {
+		return unknown1 == 0XFFFFFFFF
+			&& unknown2 == 0;
+	}
 };
 
 struct Offset36Info {
-	uint unknown1[2]; // 0X00000040, 0XFFFFFFFF
-	uint file_size;
+	uint flag; // 0x00 or 0x02 or 0x03 or 0x0A or 0x40 or 0xC0
+	uint unknown1; // 0XFFFFFFFF
+	uint compr_size;
 	uint unknown2; // 0
 
 	// the next 36 byte
-	uint unknown3[2]; //[0] = file_size(maybe), [1] = unknown2
+	uint uncompr_size; // sometimes = file_size
+	uint unknown3; // 0
 	uint file_offset;
 	uint file_index;
 	uint filename_offset;
+
+	bool operator()() {
+		return unknown1 == 0XFFFFFFFF
+			&& unknown2 == 0
+			&& unknown3 == 0;
+	}
 };
 
 #pragma pack()
@@ -72,6 +87,9 @@ struct FileData {
 
 	FileData(uint f_size, std::string&& f_name) :
 		data(f_size), filename(std::move(f_name)) {}
+	
+	FileData(std::vector<byte>&& data, std::string&& f_name) :
+		data(std::move(data)), filename(std::move(f_name)) {}
 };
 
 class Bnd4File {
@@ -79,28 +97,57 @@ class Bnd4File {
 
 	std::vector<FileData> files_data;
 
-	template <typename TInfo>
 	void getFileInfo(BinaryFileReader& reader) {
 		files_data.reserve(bnd4_header.file_count);
 
-		std::vector<TInfo> offset_infos;
-		offset_infos.reserve(bnd4_header.file_count);
+		if (bnd4_header.offset_struct_size != 36) {
+			std::vector<OffsetInfo> offset_infos;
+			offset_infos.reserve(bnd4_header.file_count);
 
-		for (uint i = 0; i < bnd4_header.file_count; ++i)
-			offset_infos.emplace_back(reader.readType<TInfo>());
+			for (uint i = 0; i < bnd4_header.file_count; ++i) {
+				offset_infos.emplace_back(reader.readType<OffsetInfo>());
+				assert(offset_infos.back()());
+			}
 
-		uint old_pos = reader.tell();
-		for (const auto& offset_info : offset_infos) {
-			reader.seek(offset_info.filename_offset);
-			if(bnd4_header.encoding == 0) 
-				files_data.emplace_back(offset_info.file_size, reader.readString());
-			else
-				files_data.emplace_back(offset_info.file_size, reader.readWString());
+			uint old_pos = reader.tell();
+			for (const auto& offset_info : offset_infos) {
+				reader.seek(offset_info.filename_offset);
+				if (bnd4_header.encoding == 0)
+					files_data.emplace_back(offset_info.file_size, reader.readString());
+				else
+					files_data.emplace_back(offset_info.file_size, reader.readWString());
 
-			reader.seek(offset_info.file_offset);
-			reader.read(files_data.back().data.data(), files_data.back().data.size());
+				reader.seek(offset_info.file_offset);
+				reader.read(files_data.back().data.data(), files_data.back().data.size());
+			}
+			reader.seek(old_pos);
 		}
-		reader.seek(old_pos);
+		else {
+			std::vector<Offset36Info> offset_infos;
+			offset_infos.reserve(bnd4_header.file_count);
+
+			for (uint i = 0; i < bnd4_header.file_count; ++i) {
+				offset_infos.emplace_back(reader.readType<Offset36Info>());
+				assert(offset_infos.back()());
+			}
+
+			uint old_pos = reader.tell();
+			for (const auto& offset_info : offset_infos) {
+				reader.seek(offset_info.filename_offset);
+				if (bnd4_header.encoding == 0)
+					files_data.emplace_back(offset_info.uncompr_size, reader.readString());
+				else
+					files_data.emplace_back(offset_info.uncompr_size, reader.readWString());
+
+				reader.seek(offset_info.file_offset);
+				if (offset_info.flag == 0X03 || offset_info.flag == 0XC0)
+					reader.readCompressedData(offset_info.compr_size,
+						files_data.back().data.data(), files_data.back().data.size());
+				else
+					reader.read(files_data.back().data.data(), files_data.back().data.size());
+			}
+			reader.seek(old_pos);
+		}
 	}
 
 public:
@@ -108,12 +155,12 @@ public:
 		bnd4_header = reader.readType<Bnd4Header>();
 		assert(bnd4_header());
 
- 		if (bnd4_header.offset_struct_size == 36) getFileInfo<Offset36Info>(reader);
- 		else getFileInfo<OffsetInfo>(reader);
+		getFileInfo(reader);
 	}
 
 	void unpack(const std::string& output_dir) {
 		for (const auto& file : files_data) {
+			//std::experimental::filesystem::create_directories(getFileParent(output_dir + '/' + file.filename));
 			std::ofstream os(output_dir + '/' + file.filename, std::ios::binary);
 			os.write(file.data.data(), file.data.size());
 		}

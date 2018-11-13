@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <vector>
 #include <fstream>
+#include <zlib.h>
 
 using byte = char;
 using ubyte = unsigned char;
@@ -87,17 +88,25 @@ static std::wstring strToWStr(const std::string& str) {
 	return wstr;
 }
 
-//note: cannot deal with no '/' or '\' and no '.' path
 static std::string getFileName(const std::string& path) {
-	uint index = path.find_last_of('\\');
-	if (index == std::string::npos) index = path.find_last_of('/');
-	return path.substr(index + 1, path.find_last_of('.') - index - 1);
+	std::string::size_type s_index = path.find_last_of('\\');
+	if (s_index == std::string::npos) s_index = path.find_last_of('/');
+	if (s_index == std::string::npos) s_index = -1;
+	std::string::size_type e_index = path.find_last_of('.');
+	if (e_index == std::string::npos) e_index == path.length();
+	return path.substr(s_index + 1, e_index - s_index - 1);
 }
 
-//note: cannot deal with no '/' or '\' and no '.' path
+static std::string getFileSuffix(const std::string& path) {
+	std::string::size_type index = path.find_last_of('.');
+	if (index == std::string::npos) return path;
+	return path.substr(index + 1);
+}
+
 static std::string getFileParent(const std::string& path) {
-	uint index = path.find_last_of('\\');
+	std::string::size_type index = path.find_last_of('\\');
 	if (index == std::string::npos) index = path.find_last_of('/');
+	if (index == std::string::npos) return "/";
 	return path.substr(0, index + 1);
 }
 
@@ -116,10 +125,54 @@ public:
 
 	uint tell() { return is.tellg(); }
 
-	void skip(int length) { is.seekg(length, std::ios::cur); }
+	bool skip(int length) { return !is.seekg(length, std::ios::cur).fail(); }
 
-	bool read(byte* data, int length) {
+	bool skipToPadded() {
+		uint pos = is.tellg();
+		pos = ((pos + 3) >> 2) << 2;
+		return !is.seekg(pos).fail();
+	}
+
+	bool read(byte* data, uint length) {
 		return !is.read(data, length).fail();
+	}
+
+	bool readCompressedData(uint compr_len, byte* data, uint uncompr_len) {
+		auto compr_data = new byte[uncompr_len];
+		if(!read(compr_data, compr_len)) return false;
+
+		z_stream d_stream;
+		d_stream.zalloc = nullptr;
+		d_stream.zfree = nullptr;
+		d_stream.opaque = nullptr;
+
+		d_stream.next_in = (ubyte*)compr_data;
+		d_stream.avail_in = compr_len;
+
+		if (inflateInit(&d_stream) != Z_OK) {
+			Log::error("Inflate initial failed!");
+			return false;
+		}
+
+		auto out_addr = (ubyte*)data;
+		while (true) {
+			//d_stream.avail_in = d_stream.avail_out = 1; /* force small buffers */
+			d_stream.next_out = out_addr;            /* discard the output */
+			d_stream.avail_out = uncompr_len;
+			int flag = inflate(&d_stream, Z_NO_FLUSH);
+			if (flag == Z_STREAM_END) break;
+			else if (flag != Z_OK) {
+				Log::error("Inflate failed!");
+				return false;
+			}
+		}
+
+		if (inflateEnd(&d_stream) != Z_OK) {
+			Log::error("Inflate exit failed!");
+			return false;
+		}
+
+		return true;
 	}
 
 	template <typename Type>
@@ -131,6 +184,15 @@ public:
 
 		is.read(data.byte_data, sizeof(Type));
 		return data.type_data;
+	}
+
+	std::string readString(uint length) {
+		std::vector<byte> data(length, '\0');
+		is.read(data.data(), length);
+
+		for (auto& b : data) b &= 0X7F;
+
+		return std::string(data.begin(), data.end());
 	}
 
 	//read a string with '\0' end
