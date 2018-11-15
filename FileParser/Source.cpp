@@ -42,23 +42,23 @@ int main() {
 	//filename = "F:/BinderTool/Game/GameDataEbl/model/chr/c6800.bnd";
 	//std::ifstream is("F:/BinderTool/Game/bnd4_file.txt");
 	//while (std::getline(is, filename)) {
+	//Log::info("filename: ", filename);
+	//BinaryFileReader reader(filename);
+	//if (reader.is_exist()) {
+	//	Bnd4File bnd4(reader);
+	//	bnd4.unpack("C:/Users/KingSun/Desktop");
+	//}
+	//}
+
+	//std::string filename("F:/BinderTool/Game/GameDataEbl/material/AllMaterialBnd/A14Water[B].mtd");
+	//std::ifstream is("F:/BinderTool/Game/GameDataEbl/model/chr/output/flver_file.txt");
+	//while (std::getline(is, filename)) {
 	//	Log::info("filename: ", filename);
 	//	BinaryFileReader reader(filename);
 	//	if (reader.is_exist()) {
-	//		Bnd4File bnd4(reader);
-	//		bnd4.unpack("C:/Users/KingSun/Desktop");
+	//		MtdFile mtd_file(reader);
 	//	}
 	//}
-
-	std::string filename("F:/BinderTool/Game/GameDataEbl/material/AllMaterialBnd/A14Water[B].mtd");
-	std::ifstream is("F:/BinderTool/Game/GameDataEbl/model/chr/output/flver_file.txt");
-	while (std::getline(is, filename)) {
-		Log::info("filename: ", filename);
-		BinaryFileReader reader(filename);
-		if (reader.is_exist()) {
-			MtdFile mtd_file(reader);
-		}
-	}
 
 	Log::info("Parse completed!");
 #endif

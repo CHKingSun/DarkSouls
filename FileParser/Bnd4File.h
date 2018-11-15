@@ -135,9 +135,11 @@ class Bnd4File {
 			for (const auto& offset_info : offset_infos) {
 				reader.seek(offset_info.filename_offset);
 				if (bnd4_header.encoding == 0)
-					files_data.emplace_back(offset_info.uncompr_size, reader.readString());
+					files_data.emplace_back(offset_info.uncompr_size, 
+						Util::unrootPath(reader.readString()));
 				else
-					files_data.emplace_back(offset_info.uncompr_size, reader.readWString());
+					files_data.emplace_back(offset_info.uncompr_size,
+						Util::unrootPath(reader.readWString()));
 
 				reader.seek(offset_info.file_offset);
 				if (offset_info.flag == 0X03 || offset_info.flag == 0XC0)
@@ -160,7 +162,7 @@ public:
 
 	void unpack(const std::string& output_dir) {
 		for (const auto& file : files_data) {
-			//std::experimental::filesystem::create_directories(getFileParent(output_dir + '/' + file.filename));
+			//std::experimental::filesystem::create_directories(Util::getFileParent(output_dir + '/' + file.filename));
 			std::ofstream os(output_dir + '/' + file.filename, std::ios::binary);
 			os.write(file.data.data(), file.data.size());
 		}

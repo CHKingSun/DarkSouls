@@ -656,19 +656,19 @@ public:
 			os << "Ks 0.48 0.48 0.48\n";
 			for (uint i = mat_info.param_start_index; i < mat_info.param_count + mat_info.param_start_index; ++i) {
 				if (mat_data[i].type_name == "g_DiffuseTexture" || mat_data[i].type_name == "g_DiffuseTexture2") {
-					os << "map_Kd " << getFileName(mat_data[i].filename) << ".dds\n";
+					os << "map_Kd " << Util::getFileName(mat_data[i].filename) << ".dds\n";
 				}
 				else if (mat_data[i].type_name == "g_SpecularTexture" || mat_data[i].type_name == "g_SpecularTexture2") {
-					os << "map_Ks " << getFileName(mat_data[i].filename) << ".dds\n";
+					os << "map_Ks " << Util::getFileName(mat_data[i].filename) << ".dds\n";
 				}
 				else if (mat_data[i].type_name == "g_BumpmapTexture" || mat_data[i].type_name == "g_BumpmapTexture2") {
-					os << "map_Bump " << getFileName(mat_data[i].filename) << ".dds\n";
+					os << "map_Bump " << Util::getFileName(mat_data[i].filename) << ".dds\n";
 				}
 				else if (mat_data[i].type_name == "g_DetailBumpmapTexture" || mat_data[i].type_name == "g_DetailBumpmapTexture2") {
-					os << "map_Bump " << getFileName(mat_data[i].filename) << ".dds\n";
+					os << "map_Bump " << Util::getFileName(mat_data[i].filename) << ".dds\n";
 				}
 				else if (mat_data[i].type_name == "g_HighlightTexture") {
-					os << "map_Ns " << getFileName(mat_data[i].filename) << ".dds\n";
+					os << "map_Ns " << Util::getFileName(mat_data[i].filename) << ".dds\n";
 				}
 			}
 			os << "\n";

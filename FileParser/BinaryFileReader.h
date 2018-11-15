@@ -6,6 +6,7 @@
 #define BINARY_FILE_READER_H
 
 #include "Log.h"
+#include "Util.h"
 
 #include <string>
 #include <cstdlib>
@@ -72,43 +73,7 @@ struct PackedTangent {
 	float getW()const { return (w - 127.f) / 127.f; }
 };
 
-static std::string wstrToStr(const std::wstring& wstr) {
-	auto p_str = new char[wstr.size() * 2 + 1];
-	std::wcstombs(p_str, wstr.data(), wstr.size() * 2 + 1);
-	std::string str(p_str);
-	delete[] p_str;
-	return str;
-}
-
-static std::wstring strToWStr(const std::string& str) {
-	auto p_wstr = new wchar_t[str.size() + 1];
-	std::mbstowcs(p_wstr, str.data(), str.size() + 1);
-	std::wstring wstr(p_wstr);
-	delete[] p_wstr;
-	return wstr;
-}
-
-static std::string getFileName(const std::string& path) {
-	std::string::size_type s_index = path.find_last_of('\\');
-	if (s_index == std::string::npos) s_index = path.find_last_of('/');
-	if (s_index == std::string::npos) s_index = -1;
-	std::string::size_type e_index = path.find_last_of('.');
-	if (e_index == std::string::npos) e_index == path.length();
-	return path.substr(s_index + 1, e_index - s_index - 1);
-}
-
-static std::string getFileSuffix(const std::string& path) {
-	std::string::size_type index = path.find_last_of('.');
-	if (index == std::string::npos) return path;
-	return path.substr(index + 1);
-}
-
-static std::string getFileParent(const std::string& path) {
-	std::string::size_type index = path.find_last_of('\\');
-	if (index == std::string::npos) index = path.find_last_of('/');
-	if (index == std::string::npos) return "/";
-	return path.substr(0, index + 1);
-}
+#pragma pack()
 
 class BinaryFileReader {
 	std::ifstream is;
@@ -127,10 +92,11 @@ public:
 
 	bool skip(int length) { return !is.seekg(length, std::ios::cur).fail(); }
 
-	bool skipToPadded() {
+	bool skipToPadded(uint align = 4) {
 		uint pos = is.tellg();
-		pos = ((pos + 3) >> 2) << 2;
-		return !is.seekg(pos).fail();
+		if (pos % align != 0)
+			return !is.seekg(align - pos % align, std::ios::cur).fail();
+		return true;;
 	}
 
 	bool read(byte* data, uint length) {
@@ -190,7 +156,7 @@ public:
 		std::vector<byte> data(length, '\0');
 		is.read(data.data(), length);
 
-		for (auto& b : data) b &= 0X7F;
+		//for (auto& b : data) b &= 0X7F;
 
 		return std::string(data.begin(), data.end());
 	}
@@ -217,10 +183,8 @@ public:
 			ch = readType<wchar_t>();
 		}
 
-		return wstrToStr(data);
+		return Util::unicodeToUtf8(data);
 	}
 };
-
-#pragma pack()
 
 #endif // !BINARY_FILE_READER_H
